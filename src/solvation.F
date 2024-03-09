@@ -14,23 +14,32 @@
 !limitations under the License.
 !**********************************************************************
 
+!**********************************************************************
+!This is a declaration of the vaspsol project,
+!and this part is same in all .F files.
+!The src/solvation.f is just combined the modules/*.F three files to it,
+!and only some parameters values are changed.
+!> annotation by chxue
+!**********************************************************************
+
 #include "symbol.inc"
 
 
 MODULE POT_LPCM_K
 
- USE prec
- USE constant 
- USE base
- USE mpimy 
- USE poscar, ONLY : type_info 
+!>** use the module in vasp chxue**
+ USE prec     !>**control the parameter precision, defined in vasp >chxue**
+ USE constant !>**which is used to define some constants. >chxue**
+ USE base     !>**base module, it also defined in vasp >chxue**
+ USE mpimy    !>**which is used to parallel computing, defined in vasp >chxue**
+ USE poscar, ONLY : type_info !only import type_info from poscar module >chxue**
  USE lattice, ONLY : latt, DIRKAR 
  USE mgrid, ONLY : grid_3d
  USE pseudo, ONLY : potcar
 #ifdef sol_compat
  USE c2f_interface, ONLY : ERRFC
 #endif
-
+!> **define the public and private variables >chxue**
  PUBLIC :: Vcorrection_lpcm, MY_D_PROD, GET_VAC_LEVEL
  PUBLIC :: PACK_R2C, UNPACK_C2R, WRITE_TO_FILE, SimplePoisson
  PRIVATE :: CREATECAVITY, MINIMIZE, Leps, EPS_POT
@@ -65,7 +74,7 @@ SUBROUTINE Vcorrection_lpcm(SP_GRIDC, SP_LATT_CUR, SP_P, &
 
  IMPLICIT NONE
 
- TYPE(type_info),INTENT(IN) :: SP_T_INFO
+ TYPE(type_info),INTENT(IN) :: SP_T_INFO  !>** SP_T_INFO means: solves poisson type info? >chxue**
  TYPE(potcar),INTENT(IN) :: SP_P (SP_T_INFO%NTYP)
  TYPE (latt),INTENT(IN) :: SP_LATT_CUR
  TYPE(grid_3d),INTENT(IN) :: SP_GRIDC
@@ -88,7 +97,7 @@ SUBROUTINE Vcorrection_lpcm(SP_GRIDC, SP_LATT_CUR, SP_P, &
  RGRID,ALLOCATABLE :: RWORK_PHI(:), RWORK_CHG(:)
  COMPLEX(q),ALLOCATABLE :: CWORK_K(:)
  !vacuum level
- RGRID,ALLOCATABLE :: RHOB(:), RHOION(:)
+ RGRID,ALLOCATABLE :: RHOB(:), RHOION(:)  !>** RHOION--the charge density of ions >chxue**
 
  ALLOCATE(SP_d_eps(DIMREAL(SP_GRIDC%MPLWV)) )
  ALLOCATE(SP_kappa2(DIMREAL(SP_GRIDC%MPLWV)))
@@ -153,11 +162,11 @@ SUBROUTINE Vcorrection_lpcm(SP_GRIDC, SP_LATT_CUR, SP_P, &
 !ps_totn is unscaled and in real space
 !unpack ps_totn from complex array to real array
 !-------------------------------------------------------------
- CALL UNPACK_C2R(PS_TOTN, 1.0_q, PS_TOTN, 0.0_q, RWORK, SP_GRIDC)
+ CALL UNPACK_C2R(PS_TOTN, 1.0_q, PS_TOTN, 0.0_q, RWORK, SP_GRIDC)!>**C2R: complex to real >chxue**
 
 !-------------------------------------------------------------
 !compute the interface contribution to the local pot, Vdiel
-!basically the terms involving the derivatives wrt the charge density
+!basically the terms involving the derivatives wrt the charge density !>**wrt: with respect to >chxue**
 !Vdiel includes the terms containing the epsilon derivative and
 !the kappa derivative
 !ps_totn is unscaled and in real space
@@ -168,7 +177,7 @@ SUBROUTINE Vcorrection_lpcm(SP_GRIDC, SP_LATT_CUR, SP_P, &
 !-------------------------------------------------------------
 ! multiply by 0.5*e/permittivity of free space
 !-------------------------------------------------------------
- Vdiel = 0.5 * Vdiel / EDEPS
+ Vdiel = 0.5 * Vdiel / EDEPS    !>EDEPS:
 
 !-------------------------------------------------------------
 !compute phi, pot due to (n+N) with epsilon=1
@@ -185,7 +194,7 @@ SUBROUTINE Vcorrection_lpcm(SP_GRIDC, SP_LATT_CUR, SP_P, &
 
 !---------------------------------------------------------------------
 !add the cavitation correction
-!! Vcorr = Vcorr + Vcav
+!! Vcorr = Vcorr + Vcav       !>** It should be: Vcorr = Vdiel + Vcav? >chxue**
 !both Vdiel and Vcav are the derivatives of the free enrgy wrt 
 !n_cavity
 !where n_cavity=n+pseudo core
@@ -193,14 +202,16 @@ SUBROUTINE Vcorrection_lpcm(SP_GRIDC, SP_LATT_CUR, SP_P, &
 !force corrections due Vcorr we need to multiply by the derivative of
 !total charge density with respect to the positions wheras for 
 !Vdiel we need to multiply by the derivativer of the n_cavity wrt 
-!the positions
+!the positions   
+!>** the force correction from Vcorr: Fcorr = -grad(Vcorr) * d(n_TotalChargeDensity)/dR? >chxue**
+!>** the force correction from Vdiel: Fdiel = -grad(Vdiel) * d(n_cavity)/dR? >chxue**               
 !---------------------------------------------------------------------
  Vdiel = Vdiel + Vcav
 
 !-------------------------------------------------------------
 !compute the components of E_correction, Ecorr
-!all energies are computed with chargedensities scaled by the 
-!lattice volume inorder to be consistent with vasp
+!all energies are computed with charge densities scaled by the 
+!lattice volume in order to be consistent with vasp !>** why scaled by Vlat? >chxue**
 !-------------------------------------------------------------
 !  Ecorr1 = 0.5*phi_tilda*(n+N), where phi_tilda is the CG soln
 !-------------------------------------------------------------
@@ -288,7 +299,7 @@ END SUBROUTINE Vcorrection_lpcm
 !!
 !!====================================================================
 SUBROUTINE CREATECAVITY(CE_GRIDC, CE_LATT_CUR, CE_P, CE_T_INFO, &
-     & CE_PS_TOTN,CE_d_eps,CE_kappa2,Vcav,Acav)  
+     & CE_PS_TOTN,CE_d_eps,CE_kappa2,Vcav,Acav)  !>** CE: cavity energy >chxue**
 
  IMPLICIT NONE
 
@@ -302,9 +313,9 @@ SUBROUTINE CREATECAVITY(CE_GRIDC, CE_LATT_CUR, CE_P, CE_T_INFO, &
  RGRID,INTENT(OUT) :: CE_kappa2(DIMREAL(CE_GRIDC%MPLWV))
 
  REAL(q),ALLOCATABLE :: CE_S(:), VWORK(:) ! shape func & Vcav
- !\nabla n and |\naba n|^2
+ !\nabla n and |\nabla n|^2
  REAL(q),ALLOCATABLE :: CE_gn(:,:), CE_gn2_tmp(:) 
- COMPLEX(q),ALLOCATABLE :: CE_gn2(:) ! |\naba n|^2
+ COMPLEX(q),ALLOCATABLE :: CE_gn2(:) ! |\nabla n|^2
  REAL(q),ALLOCATABLE :: CE_ggn(:,:) !\nabla |\nabla n|
  REAL(q),ALLOCATABLE :: CE_ggn2(:) !| \nabla |\nabla n| |^2
  REAL(q),ALLOCATABLE :: CE_divn(:) ! laplacian of n
@@ -788,7 +799,7 @@ SUBROUTINE Leps(LPS_GRIDC, LPS_LATT_CUR, LPS_T_INFO, LPS_phi, &
 
  !---------------------------------------------------------------------
  !Fourier transform of grad phi
- !---------------------------------------------------------------------
+ !--------------------------------------------------------------------
  DO I=1,LPS_GRIDC%RC%NP
 
     N1= MOD((I-1),LPS_GRIDC%RC%NROW) +1
@@ -1758,7 +1769,7 @@ END MODULE POT_LPCM_K
 !!from the module POT_LPCM_K and compute the force corrections
 !!
 !!=====================================================================
-MODULE POT_K
+MODULE POT_K !>** moduletag module pot_k >chxue**
 
  USE prec
  USE base
@@ -2817,7 +2828,7 @@ END MODULE POT_K
 !
 !
 !***********************************************************************
-MODULE solvation
+MODULE solvation  !>** moduletag module solvation >chxue**
 
   USE prec
   USE base
